@@ -4,24 +4,24 @@ package Class::StrongSingleton;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my %instances;
 my %constructors;
 	
 ## protected initializer
-sub _init {
+sub _init_StrongSingleton {
 	# do not let us be called by anything which
 	# is not derived from Class::StrongSingleton
     (UNIVERSAL::isa((caller)[0], 'Class::StrongSingleton')) 
-        || die "Illegal Operation : _init can only be called by a subclass of Class::StrongSingleton";	
+        || die "Illegal Operation : _init_StrongSingleton can only be called by a subclass of Class::StrongSingleton";	
 	my ($self) = @_;
 	(ref($self))
-		|| die "Illegal Operation : _init can only be called as an instance method";
+		|| die "Illegal Operation : _init_StrongSingleton can only be called as an instance method";
 	# get the class name
 	my $class = ref($self);
 	(!exists($instances{$class})) 
-		|| die "Illegal Operation : cannot call _init with a valid Singleton instance";
+		|| die "Illegal Operation : cannot call _init_StrongSingleton with a valid Singleton instance";
 	# assuming new was the name of our
 	# constructor, otherwise ...
 	my $constructor = $self->can("new");
@@ -37,6 +37,9 @@ sub _init {
 	# single instance. 
 	*{"${class}::new"} = sub { return $_[0]->instance() };				
 }
+
+# for backwards compatability we retain the old _init
+*_init = \&_init_StrongSingleton;
 
 ### destructor
 sub DESTROY {
@@ -90,7 +93,7 @@ Class::StrongSingleton - A stronger and more secure Singleton base class.
 	 my $instance = { %my_params };
 	 bless($instance, $class);
 	 # and initialize it as a singleton
-	 $instance->_init();
+	 $instance->_init_StrongSingleton();
 	 return $instance;
   }
   
@@ -147,20 +150,23 @@ C<new> method entirely. Through this method, a user can be able to use the Singl
 
 =over 4
 
-=item B<_init>
+=item B<_init_StrongSingleton>
 
 This method is used to initialize the Singleton instance, your class B<must> call this. This is a protected method, meaning it can only be called by a subclass of Class::StrongSingleton, otherwise it will throw an exception. It also must be called as an instance method and not as a class method, which means that your constructor should look something like this:
 
   sub new {
 	my $class = shift;
 	my $instance = bless({}, $class);
-	$instance->_init();
+	$instance->_init_StrongSingleton();
 	return $instance;
   }
 
-You also may not call C<_init> once a Singleton instance has been established, if you do, and exception will be thrown. This is an unlikely error, but one that may come up if your class has complex initializers. In general you want the Class::StrongSingleton C<_init> method to be the last step in your class initialization process. It should be noted, that this module performs just fine in multiple inheritance situations, just be sure the C<_init> method gets properly called.
+You also may not call C<_init_StrongSingleton> once a Singleton instance has been established, if you do, and exception will be thrown. This is an unlikely error, but one that may come up if your class has complex initializers. In general you want the Class::StrongSingleton C<_init_StrongSingleton> method to be the last step in your class initialization process. It should be noted, that this module performs just fine in multiple inheritance situations, just be sure the C<_init_StrongSingleton> method gets properly called.
 
 It is also important to note that there currently is a restriction on constructor names. Your class constructor must be named C<new>, if it is not an exception is thrown in this method. This is because we I<hijack> the constructor function to insure that no new instances are created, and need to be able to access it by name. In future versions (if there is request for it) I will put in functionality to be able to specify a specific constructor name.
+
+B<NOTE:>
+In version 0.01 this method was called C<_init>, but since that is all too common a name, and could easily be accidentely overridden in a subclass, it has been changed. However to maintain backwards compatability, C<_init> has been aliased to C<_init_StrongSingleton>.
 
 =item B<instance>
 
@@ -172,7 +178,7 @@ B<WARNING:> As you may have already know, this functionality is a dangerous thin
 
 That said, I felt it a good idea to include some means of destruction for these Singleton class instances. While more often than not you will want your Singleton to never go out of scope and therefore never need to be destroyed (except maybe during global destruction when the interpreter is exiting), there might be sometimes in a long running system/application that it would be desireable to have the ability to DESTROY (or refresh/reload) the Singleton instance of your class. So for these reasons i have also implemented a destructor for the class (using the built in DESTROY method). 
 
-This destructor will clean up/restore all of the changes made by the C<_init> method, so that you class will be restored back to it's original state. Keep in mind, that perl will never call this DESTROY method itself, since there will always be a reference to the Singleton instance stored internally. So if you want to create a new instance you must call the DESTROY method yourself.
+This destructor will clean up/restore all of the changes made by the C<_init_StrongSingleton> method, so that you class will be restored back to it's original state. Keep in mind, that perl will never call this DESTROY method itself, since there will always be a reference to the Singleton instance stored internally. So if you want to create a new instance you must call the DESTROY method yourself.
 
   my $instance1 = $obj->instance();
   $obj->DESTORY()
@@ -216,7 +222,7 @@ Class::StrongSingleton stores the Singleton instance in a lexically scoped packa
 
 The original Gang of Four Singleton pattern calls for the method C<instance> to be used to call a private or protected constructor. I feel this restriction has more to do with the C++ language than it does with common sense. Both Class::Singleton and Class::WeakSingleton expect you to call C<instance>, and to implement a private constructor called C<_new_instance>, which the subclasser is expected to override. 
 
-Class::StrongSingleton takes a different approach, to initialize your Singleton, you must call C<_init> as an instance method on a subclass of Class::StrongSingleton. An C<instance> method is provided, but it is not the only constructor, but instead, just an accessor for the Singleton instance. Class::StrongSingleton allows you to use the standard constructor C<new> to create your Singleton, and then I<hijacks> the C<new> method so that it will only ever return the Singleton instance. 
+Class::StrongSingleton takes a different approach, to initialize your Singleton, you must call C<_init_StrongSingleton> as an instance method on a subclass of Class::StrongSingleton. An C<instance> method is provided, but it is not the only constructor, but instead, just an accessor for the Singleton instance. Class::StrongSingleton allows you to use the standard constructor C<new> to create your Singleton, and then I<hijacks> the C<new> method so that it will only ever return the Singleton instance. 
 
 All this may sound complicated (or maybe just stupid), but I do have my reasons. Singletons are a design "trick" to get around global variables, and sometimes can be overused/abused. On occasion, I have found myself refactoring out Singletons, to improve the design and/or efficiency of an application. Using the style of this module where C<new> can be used quite normally, it makes it much easier to remove Singletons. 
 
@@ -224,7 +230,7 @@ All this may sound complicated (or maybe just stupid), but I do have my reasons.
 
 With both Class::Singleton and Class::WeakSingleton a simple call to C<_new_instance> will result in a non-Singleton instance of your Singleton class. Yes, yes, I know,... this is another case of "don't go there because you were not invited". 
 
-With Class::StrongSingleton; calling C<new> will return the Singleton, calling C<instance> will return the Singleton and directly calling C<_init> will result in an exception. A class must purposfully create a constructor method which bypasses  Class::StrongSingleton in order to create a duplicate or errant instance. 
+With Class::StrongSingleton; calling C<new> will return the Singleton, calling C<instance> will return the Singleton and directly calling C<_init_StrongSingleton> will result in an exception. A class must purposfully create a constructor method which bypasses  Class::StrongSingleton in order to create a duplicate or errant instance. 
 
 =back
 
