@@ -1,0 +1,8 @@
+Revision history for Perl extension Class-StrongSingleton.
+
+0.01 Thu Sep 30 2004
+    - module created from Singleton.pm
+		- tests added
+		- documentation written
+		- etc, etc.
+
